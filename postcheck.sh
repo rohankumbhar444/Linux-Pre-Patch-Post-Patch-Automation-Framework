@@ -2,7 +2,7 @@
 # Linux Postcheck — verifies system/services/network health after changes
 
 set -u
-OUTDIR="/home/john"
+OUTDIR="${OUTDIR:-/home/devops}"
 STAMP="$(date +'%d-%m-%Y_%H-%M-%S')"
 OUT="${OUTDIR}/postcheck_${STAMP}.txt"
 mkdir -p "$OUTDIR"
