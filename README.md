@@ -10,11 +10,17 @@ It helps ensure system stability, compliance, and safe change execution in enter
 
 Features
 Capability	Details
+
 🔹 Pre-Patch System Health Check	Baseline system state collection
+
 🔹 Post-Patch Verification	Confirms services & system stability after reboot/patch
+
 🔹 Central Log Collection	Saves output for audit & troubleshooting
+
 🔹 Ansible Automation	Run checks on multiple remote hosts
+
 🔹 Safe & Non-Intrusive	Read-only checks — no configuration change
+
 Components
 1️Pre-Check Script
 Collects system configuration and health details before patching, including:
