@@ -1,0 +1,96 @@
+---
+- name: End-to-End Patching with Pre & Post Checks + Log Collection
+  hosts: all
+  become: true
+  gather_facts: true
+  serial: 25%   # Patch in batches (25% at a time)
+
+  vars:
+    report_dir: /home/devops
+    pre_script: ./precheck.sh
+    post_script: ./postcheck.sh
+    do_reboot: true
+
+  pre_tasks:
+    - name: Ensure report directory exists on target
+      file:
+        path: "{{ report_dir }}"
+        state: directory
+        mode: "0755"
+
+  tasks:
+
+    ########################################################
+    # PRE-CHECK
+    ########################################################
+    - name: Run Pre-Check Script
+      script: "{{ pre_script }}"
+      environment:
+        OUTDIR: "{{ report_dir }}"
+      tags: [precheck]
+
+    ########################################################
+    # PATCHING (RHEL / Ubuntu)
+    ########################################################
+    - name: Apply patches on RHEL-family
+      dnf:
+        name: "*"
+        state: latest
+      when: ansible_os_family == "RedHat"
+      tags: [patch]
+
+    - name: Apply patches on Debian-family
+      apt:
+        update_cache: yes
+        upgrade: dist
+      when: ansible_os_family == "Debian"
+      tags: [patch]
+
+    ########################################################
+    # REBOOT (if enabled)
+    ########################################################
+    - name: Reboot system after patching
+      reboot:
+        reboot_timeout: 1800
+      when: do_reboot | bool
+      tags: [reboot]
+
+    ########################################################
+    # POST-CHECK
+    ########################################################
+    - name: Run Post-Check Script
+      script: "{{ post_script }}"
+      environment:
+        OUTDIR: "{{ report_dir }}"
+      tags: [postcheck]
+
+    ########################################################
+    # FETCH REPORTS TO ANSIBLE CONTROLLER
+    ########################################################
+
+    - name: Set run date
+      set_fact:
+        run_date: "{{ ansible_date_time.date }}"  # YYYY-MM-DD
+
+    - name: Find report files on managed host
+      find:
+        paths: "{{ report_dir }}"
+        patterns:
+          - "precheck_*.txt"
+          - "postcheck_*.txt"
+        file_type: file
+      register: report_files
+
+    - name: Create folder on Ansible controller for this host and date
+      delegate_to: localhost
+      file:
+        path: "pching/{{ inventory_hostname }}/{{ run_date }}"
+        state: directory
+        mode: "0755"
+
+    - name: Fetch log files to controller
+      fetch:
+        src: "{{ item.path }}"
+        dest: "pching/{{ inventory_hostname }}/{{ run_date }}/"
+        flat: true
+      loop: "{{ report_files.files }}"
