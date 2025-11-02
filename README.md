@@ -60,6 +60,7 @@ Ideal for production environments
 Directory Structure
 
 📁 server-maintenance-automation
+
  ┣ 📜 precheck.sh
  
  ┣ 📜 postcheck.sh
