@@ -58,11 +58,16 @@ Automation for patch cycles
 Ideal for production environments
 
 Directory Structure
+
 📁 server-maintenance-automation
  ┣ 📜 precheck.sh
+ 
  ┣ 📜 postcheck.sh
- ┣ 📜 auto_patching.yml     # Run precheck and postcheck via Ansible   
+ 
+ ┣ 📜 auto_patching.yml     # Run precheck and postcheck via Ansible
+ 
  ┣ 📜 inventory             # List of target servers
+ 
  ┗ 📜 README.md
 
 How to Use
