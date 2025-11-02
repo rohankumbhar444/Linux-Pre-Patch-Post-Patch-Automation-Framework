@@ -2,7 +2,7 @@
 # Linux Precheck — collects system/storage/network snapshots into a dated text file
 
 set -u
-OUTDIR="/home/john"
+OUTDIR="${OUTDIR:-/home/devops}"
 STAMP="$(date +'%d-%m-%Y_%H-%M-%S')"
 OUT="${OUTDIR}/precheck_${STAMP}.txt"
 
