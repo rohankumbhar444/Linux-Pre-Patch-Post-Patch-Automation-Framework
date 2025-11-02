@@ -1,15 +1,17 @@
 ---
-- name: End-to-End Patching with Pre & Post Checks + Log Collection
+- name: End-to-End Patching with Pre & Post Checks + Organized Log Collection
   hosts: all
   become: true
   gather_facts: true
-  serial: 25%   # Patch in batches (25% at a time)
+  serial: 25%
 
   vars:
     report_dir: /home/devops
     pre_script: ./precheck.sh
     post_script: ./postcheck.sh
     do_reboot: true
+    # <-- controller (Ansible machine) वर reports ठेवण्यासाठी base folder
+    base_local_dir: "{{ playbook_dir }}/pching"
 
   pre_tasks:
     - name: Ensure report directory exists on target
@@ -18,61 +20,56 @@
         state: directory
         mode: "0755"
 
-  tasks:
+    # (NEW) controller वर base dir तयार/मालकी सेट — sudo सह
+    - name: Ensure base report folder exists on controller
+      delegate_to: localhost
+      become: true
+      file:
+        path: "{{ base_local_dir }}"
+        state: directory
+        owner: "{{ lookup('env','USER') | default('devops', true) }}"
+        group: "{{ lookup('env','USER') | default('devops', true) }}"
+        mode: "0755"
 
-    ########################################################
-    # PRE-CHECK
-    ########################################################
-    - name: Run Pre-Check Script
+  tasks:
+    - name: Run Pre-check script
       script: "{{ pre_script }}"
       environment:
         OUTDIR: "{{ report_dir }}"
       tags: [precheck]
 
-    ########################################################
-    # PATCHING (RHEL / Ubuntu)
-    ########################################################
-    - name: Apply patches on RHEL-family
+    - name: Apply updates on RHEL systems
       dnf:
         name: "*"
         state: latest
       when: ansible_os_family == "RedHat"
       tags: [patch]
 
-    - name: Apply patches on Debian-family
+    - name: Apply updates on Debian/Ubuntu systems
       apt:
         update_cache: yes
         upgrade: dist
       when: ansible_os_family == "Debian"
       tags: [patch]
 
-    ########################################################
-    # REBOOT (if enabled)
-    ########################################################
-    - name: Reboot system after patching
+    - name: Reboot if enabled
       reboot:
         reboot_timeout: 1800
       when: do_reboot | bool
       tags: [reboot]
 
-    ########################################################
-    # POST-CHECK
-    ########################################################
-    - name: Run Post-Check Script
+    - name: Run Post-check script
       script: "{{ post_script }}"
       environment:
         OUTDIR: "{{ report_dir }}"
       tags: [postcheck]
 
-    ########################################################
-    # FETCH REPORTS TO ANSIBLE CONTROLLER
-    ########################################################
-
-    - name: Set run date
+    # -------- Fetch section (fixed) --------
+    - name: Set run date (YYYY-MM-DD)
       set_fact:
-        run_date: "{{ ansible_date_time.date }}"  # YYYY-MM-DD
+        run_date: "{{ ansible_date_time.date }}"
 
-    - name: Find report files on managed host
+    - name: Find generated report files on target
       find:
         paths: "{{ report_dir }}"
         patterns:
@@ -81,16 +78,20 @@
         file_type: file
       register: report_files
 
-    - name: Create folder on Ansible controller for this host and date
+    # (CHANGED) host/date folder create — sudo on controller, so chown works
+    - name: Create per-host/date folder on controller
       delegate_to: localhost
+      become: true
       file:
-        path: "pching/{{ inventory_hostname }}/{{ run_date }}"
+        path: "{{ base_local_dir }}/{{ inventory_hostname }}/{{ run_date }}"
         state: directory
+        owner: "{{ lookup('env','USER') | default('devops', true) }}"
+        group: "{{ lookup('env','USER') | default('devops', true) }}"
         mode: "0755"
 
-    - name: Fetch log files to controller
+    - name: Fetch reports into controller folder
       fetch:
         src: "{{ item.path }}"
-        dest: "pching/{{ inventory_hostname }}/{{ run_date }}/"
+        dest: "{{ base_local_dir }}/{{ inventory_hostname }}/{{ run_date }}/"
         flat: true
       loop: "{{ report_files.files }}"
