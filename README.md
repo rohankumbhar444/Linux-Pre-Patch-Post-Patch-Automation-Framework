@@ -65,7 +65,7 @@ Directory Structure
  
  ┣ 📜 postcheck.sh
  
- ┣ 📜 auto_patching.yml     # Run precheck and postcheck via Ansible
+ ┣ 📜 auto_patch.yml     # Run precheck and postcheck via Ansible
  
  ┣ 📜 inventory             # List of target servers
  
